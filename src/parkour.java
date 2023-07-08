@@ -80,7 +80,7 @@ public class parkour extends JavaPlugin implements Listener {
                     Parkourincorso.remove(player);
                     Parkourincorso.put(player, false);
                     tempo.remove(player);
-                   Checkpointgiocatore.remove(player.getUniqueId());
+                    Checkpointgiocatore.remove(player.getUniqueId());
                     player.sendMessage("Percorso annullato. Tempo e checkpoint rimossi.");
                     player.teleport(player.getWorld().getSpawnLocation());
                     return true;
@@ -104,14 +104,13 @@ public class parkour extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("tempimigliori")) {
             Tempimigliori(sender);
             return true;
-        }
-        else if (command.getName().equalsIgnoreCase("checkpoint")) {
+        } else if (command.getName().equalsIgnoreCase("checkpoint")) {
             if (sender instanceof Player) {
                 Player player = (Player) sender;
                 if (Checkpointgiocatore.containsKey(player)) {
                     Location checkpointLocation = Checkpointgiocatore.get(player);
                     player.teleport(checkpointLocation);
-                    player.sendMessage("Sei stato teletrasportato al tuo ultimo checkpoint.");
+                    player.sendMessage("Sei stato teletrasportato al tuo ultimo checkpoint raggiunto.");
                     return true;
                 } else {
                     player.sendMessage("Non hai raggiunto alcun checkpoint.");
@@ -127,27 +126,38 @@ public class parkour extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         Location playerLocation = player.getLocation();
 
-        if (Parkourincorso.containsKey(player) && Parkourincorso.get(player)) {
-            if (playerLocation.getBlock().equals(Inizio.getBlock())) {
-                // Il giocatore si trova sul blocco di inizio
-                if (!tempo.containsKey(player)) {
-                    tempo.put(player, System.currentTimeMillis());
-                    player.sendMessage("Timer avviato! Inizia il parkour.");
-                }
-            } else if (playerLocation.getBlock().equals(Fine.getBlock())) {
-                // Il giocatore ha raggiunto il blocco di fine
-                if (tempo.containsKey(player)) {
-                    long tempoTrascorso = System.currentTimeMillis() - tempo.get(player);
-                    tempo.remove(player);
-                    Parkourincorso.remove(player);
-                    Registrodeitempi.add(new RegistrazioneTempi(player.getName(), tempoTrascorso));
-                    player.sendMessage("Completato il parkour in " + tempoTrascorso + " millisecondi.");
-                }
-            } else if (checkpoints.contains(playerLocation.getBlock())) {
-                // Il giocatore si trova su un checkpoint
-                Checkpointgiocatore.put(player, playerLocation);
-                player.sendMessage("Checkpoint raggiunto! Digitare /checkpoint per tornare qui se si cade.");
+        if (playerLocation.getBlock().equals(Inizio.getBlock())) {
+            if (!Parkourincorso.containsKey(player)) {
+                Parkourincorso.put(player, true);
+                player.sendMessage("Iniziato il parkour!");
+                tempo.put(player, System.currentTimeMillis());
+                player.sendMessage("Timer avviato! Inizia il parkour.");
             }
+        } else if (playerLocation.getBlock().equals(Fine.getBlock())) {
+            if (tempo.containsKey(player)) {
+                long tempoTrascorso = System.currentTimeMillis() - tempo.get(player);
+                tempo.remove(player);
+                Parkourincorso.remove(player);
+                Registrodeitempi.add(new RegistrazioneTempi(player.getName(), tempoTrascorso));
+                player.sendMessage("Completato il parkour in " + tempoTrascorso + " millisecondi.");
+                //salva su un file di testo tutti i tempi registrati
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter("tempiparkour.txt"))) {
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+
+                    Collections.sort(Registrodeitempi);
+
+                    for (RegistrazioneTempi registrazione : Registrodeitempi) {
+                        String riga = registrazione.NomeGiocatore() + "," + registrazione.TempoGara() + "," + dateFormat.format(new Date());
+                        writer.write(riga);
+                        writer.newLine();
+                    }
+                } catch (IOException e) {
+                    player.sendMessage("Si è verificato un errore durante il salvataggio dei tempi.");
+                }
+            }
+        } else if (checkpoints.contains(playerLocation.getBlock())) {
+            Checkpointgiocatore.put(player, playerLocation);
+            player.sendMessage("Checkpoint raggiunto! Digitare /checkpoint per tornare qui se si cade.");
         }
     }
 
@@ -160,22 +170,7 @@ public class parkour extends JavaPlugin implements Listener {
         RegistrazioneTempi t1 = Registrodeitempi.get(0);
         sender.sendMessage("Il migliore tempo del parkour è stato fatto da: " + t1.NomeGiocatore() + ", in " + t1.TempoGara() + " millisecondi");
 
-
-        // Salvataggio dei tempi nel file
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("tempiparkour.txt"))) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-
-            for (RegistrazioneTempi registrazione : Registrodeitempi) {
-                String riga = registrazione.NomeGiocatore() + "," + registrazione.TempoGara() + "," + dateFormat.format(new Date());
-                writer.write(riga);
-                writer.newLine();
-            }
-        } catch (IOException e) {
-            sender.sendMessage("Si è verificato un errore durante il salvataggio dei tempi.");
-        }
     }
-
-
     public static class RegistrazioneTempi implements Comparable<RegistrazioneTempi> {
         private String nomegiocatore;
         private long tempo;
@@ -199,3 +194,4 @@ public class parkour extends JavaPlugin implements Listener {
         }
     }
 }
+
