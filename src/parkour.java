@@ -13,6 +13,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 
 public class parkour extends JavaPlugin implements Listener {
     private Location Inizio;
@@ -78,9 +81,8 @@ public class parkour extends JavaPlugin implements Listener {
                 Player player = (Player) sender;
                 if (Parkourincorso.containsKey(player) && Parkourincorso.get(player)) {
                     Parkourincorso.remove(player);
-                    Parkourincorso.put(player, false);
                     tempo.remove(player);
-                    Checkpointgiocatore.remove(player.getUniqueId());
+                    Checkpointgiocatore.remove(player);
                     player.sendMessage("Percorso annullato. Tempo e checkpoint rimossi.");
                     player.teleport(player.getWorld().getSpawnLocation());
                     return true;
@@ -138,16 +140,17 @@ public class parkour extends JavaPlugin implements Listener {
                 long tempoTrascorso = System.currentTimeMillis() - tempo.get(player);
                 tempo.remove(player);
                 Parkourincorso.remove(player);
-                Registrodeitempi.add(new RegistrazioneTempi(player.getName(), tempoTrascorso));
-                player.sendMessage("Completato il parkour in " + tempoTrascorso + " millisecondi.");
+                long ore = TimeUnit.MILLISECONDS.toHours(tempoTrascorso);
+                long minuti = TimeUnit.MILLISECONDS.toMinutes(tempoTrascorso) % 60;
+                long secondi = TimeUnit.MILLISECONDS.toSeconds(tempoTrascorso) % 60;
+                String tempoFormattato= ore + " ore, " + minuti + " minuti, " + secondi + " secondi";
+                Registrodeitempi.add(new RegistrazioneTempi(player.getName(), tempoFormattato));
+                player.sendMessage("Hai completato il parkour in "+ tempoFormattato);
                 //salva su un file di testo tutti i tempi registrati
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter("tempiparkour.txt"))) {
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-
                     Collections.sort(Registrodeitempi);
-
                     for (RegistrazioneTempi registrazione : Registrodeitempi) {
-                        String riga = registrazione.NomeGiocatore() + "," + registrazione.TempoGara() + "," + dateFormat.format(new Date());
+                        String riga = registrazione.NomeGiocatore() + "," + registrazione.TempoGara();
                         writer.write(riga);
                         writer.newLine();
                     }
@@ -173,24 +176,24 @@ public class parkour extends JavaPlugin implements Listener {
     }
     public static class RegistrazioneTempi implements Comparable<RegistrazioneTempi> {
         private String nomegiocatore;
-        private long tempo;
+        private String tempoFormattato;
 
-        public RegistrazioneTempi(String nomegiocatore, long tempo) {
+        public RegistrazioneTempi(String nomegiocatore, String tempoFormattato) {
             this.nomegiocatore = nomegiocatore;
-            this.tempo = tempo;
+            this.tempoFormattato = tempoFormattato;
         }
 
         public String NomeGiocatore() {
             return nomegiocatore;
         }
 
-        public long TempoGara() {
-            return tempo;
+        public String TempoGara() {
+            return tempoFormattato;
         }
 
         @Override
         public int compareTo(RegistrazioneTempi other) {
-            return Long.compare(tempo, other.TempoGara());
+            return CharSequence.compare(tempoFormattato, other.TempoGara());
         }
     }
 }
